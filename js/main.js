@@ -364,7 +364,7 @@
         const nd = LEVELS[state.sword.level];
         flashStage("flash-success");
         showResult(`강화 성공! +${nd.level} ${nd.name}`, "success");
-        if (nd.level >= 15) {
+        if (nd.level >= 18) {
           backend.sendSystem(`${state.nickname}님이 +${nd.level} ${nd.name} 강화에 성공했습니다!`);
         }
       } else if (Math.random() * 100 < d.destroyRate) {
@@ -374,7 +374,7 @@
         } else {
           flashStage("flash-destroy");
           showResult(`+${lv} ${d.name}이(가) 파괴되었습니다... 새로운 검을 받았습니다.`, "fail");
-          if (lv >= 10) {
+          if (lv >= 18) {
             backend.sendSystem(`${state.nickname}님의 +${lv} ${d.name}이(가) 산산조각 났습니다...`);
           }
           state.sword = { level: 0 };
