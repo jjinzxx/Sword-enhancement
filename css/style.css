@@ -346,7 +346,15 @@ main {
   min-height: 0;
 }
 .chat-msg { line-height: 1.45; word-break: break-word; }
-.chat-msg.system { color: var(--muted); font-size: 12.5px; }
+.chat-msg.system {
+  color: var(--success);
+  font-size: 12.5px;
+  font-weight: 700;
+  background: rgba(245, 195, 76, 0.08);
+  border-left: 3px solid var(--gold);
+  border-radius: 3px;
+  padding: 4px 7px;
+}
 .chat-nick { color: var(--gold); font-weight: 700; margin-right: 6px; }
 .chat-nick::after { content: ":"; color: var(--muted); margin-left: 1px; }
 .chat-text { margin-right: 6px; }
