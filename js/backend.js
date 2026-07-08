@@ -74,10 +74,12 @@ window.createBackend = function (config, handlers) {
     let latest = null; // 마지막으로 보고 요청된 {nickname, gold, dailyGold, dailyGoldDate}
 
     function mapRow(r) {
+      const system = r.nickname === "[알림]";
       return {
+        system,
         nickname: r.nickname,
         text: r.message || "",
-        item: r.item_level != null ? { level: r.item_level, name: r.item_name } : null,
+        item: system ? null : (r.item_level != null ? { level: r.item_level, name: r.item_name } : null),
         ts: new Date(r.created_at).getTime()
       };
     }

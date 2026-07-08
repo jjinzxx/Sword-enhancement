@@ -645,7 +645,8 @@
 
   function appendChat(msg) {
     const div = document.createElement("div");
-    if (msg.system) {
+    const isSystem = msg.system || msg.nickname === "[알림]";
+    if (isSystem) {
       div.className = "chat-msg system";
       div.textContent = msg.text;
     } else {
