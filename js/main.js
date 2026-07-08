@@ -160,7 +160,8 @@
     rankingList: $("rankingList"),
     chatMessages: $("chatMessages"), chatForm: $("chatForm"), chatInput: $("chatInput"),
     btnItemLink: $("btnItemLink"), attachBar: $("attachBar"),
-    attachChip: $("attachChip"), attachRemove: $("attachRemove")
+    attachChip: $("attachChip"), attachRemove: $("attachRemove"),
+    rewardPopup: $("rewardPopup"), rewardMessage: $("rewardMessage"), rewardClose: $("rewardClose")
   };
 
   // ---------- 검 비주얼 (이미지 없으면 SVG 대체) ----------
@@ -436,13 +437,24 @@
     renderNickname();
   }
 
+  function showRewardPopup(message) {
+    el.rewardMessage.textContent = message;
+    el.rewardPopup.hidden = false;
+  }
+
+  function hideRewardPopup() {
+    el.rewardPopup.hidden = true;
+  }
+
   function grantDailyLoginReward() {
     const today = todayKey();
     if (state.lastDailyRewardDate === today) return false;
     state.lastDailyRewardDate = today;
     state.boostItems += DAILY_REWARD_BOOST_COUNT;
     save();
-    appendSystem(`일일 접속 보상으로 강화 확률 업 아이템 ${DAILY_REWARD_BOOST_COUNT}개를 받았습니다.`);
+    const message = `강화 확률 업 아이템 ${DAILY_REWARD_BOOST_COUNT}개를 받았습니다.`;
+    showRewardPopup(message);
+    appendSystem(`일일 접속 보상으로 ${message}`);
     return true;
   }
 
@@ -870,6 +882,10 @@
   el.btnSell.addEventListener("click", sell);
   el.btnStore.addEventListener("click", store);
   el.chkBoost.addEventListener("change", renderCosts);
+  el.rewardClose.addEventListener("click", hideRewardPopup);
+  el.rewardPopup.addEventListener("click", e => {
+    if (e.target === el.rewardPopup) hideRewardPopup();
+  });
   el.storageTab.addEventListener("click", () => setStorageTab("storage"));
   el.shopTab.addEventListener("click", () => setStorageTab("shop"));
   el.rankTotalTab.addEventListener("click", () => setRankingTab("total"));

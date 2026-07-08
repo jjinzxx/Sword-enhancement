@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>검 키우기</title>
-  <link rel="stylesheet" href="css/style.css?v=17">
+  <link rel="stylesheet" href="css/style.css?v=18">
 </head>
 <body>
   <header>
@@ -104,10 +104,19 @@
     </aside>
   </main>
 
+  <div id="rewardPopup" class="reward-popup" hidden>
+    <div class="reward-card" role="dialog" aria-modal="true" aria-labelledby="rewardTitle">
+      <div class="reward-title" id="rewardTitle">접속 보상</div>
+      <div class="reward-icon">UP</div>
+      <div id="rewardMessage" class="reward-message"></div>
+      <button id="rewardClose" class="reward-close" type="button">확인</button>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="js/config.js?v=17"></script>
-  <script src="data/swords.js?v=17"></script>
-  <script src="js/backend.js?v=17"></script>
-  <script src="js/main.js?v=17"></script>
+  <script src="js/config.js?v=18"></script>
+  <script src="data/swords.js?v=18"></script>
+  <script src="js/backend.js?v=18"></script>
+  <script src="js/main.js?v=18"></script>
 </body>
 </html>
