@@ -476,7 +476,7 @@
         const nd = LEVELS[state.sword.level];
         flashStage("flash-success");
         showResult(`강화 성공! +${nd.level} ${nd.name}`, "success");
-        if (nd.level >= 18) {
+        if (nd.level >= 19) {
           backend.sendSystem(`${state.nickname}님이 +${nd.level} ${nd.name} 강화에 성공했습니다!`);
         }
       } else if (Math.random() * 100 < d.destroyRate) {
