@@ -19,9 +19,20 @@
   <main>
     <!-- 좌측: 보관함 -->
     <section class="panel storage-panel">
-      <h2>보관함</h2>
-      <ul id="storageList" class="storage-list"></ul>
-      <div id="storageEmpty" class="storage-empty">보관함이 비어 있습니다</div>
+      <div class="storage-header">
+        <h2>보관함</h2>
+        <div class="storage-tabs" role="tablist" aria-label="보관함과 상점">
+          <button id="storageTab" class="storage-tab active" type="button" role="tab" aria-selected="true">보관함</button>
+          <button id="shopTab" class="storage-tab" type="button" role="tab" aria-selected="false">상점</button>
+        </div>
+      </div>
+      <div id="storagePane" class="storage-pane">
+        <ul id="storageList" class="storage-list"></ul>
+        <div id="storageEmpty" class="storage-empty">보관함이 비어 있습니다</div>
+      </div>
+      <div id="shopPane" class="storage-pane" hidden>
+        <ul id="shopList" class="storage-list shop-list"></ul>
+      </div>
     </section>
 
     <!-- 중앙: 강화 -->
@@ -88,9 +99,9 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="js/config.js?v=10"></script>
-  <script src="data/swords.js?v=10"></script>
-  <script src="js/backend.js?v=10"></script>
-  <script src="js/main.js?v=10"></script>
+  <script src="js/config.js?v=11"></script>
+  <script src="data/swords.js?v=11"></script>
+  <script src="js/backend.js?v=11"></script>
+  <script src="js/main.js?v=11"></script>
 </body>
 </html>

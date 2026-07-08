@@ -5,11 +5,17 @@
   const MAX_LEVEL = LEVELS.length - 1;
   const SAVE_KEY = "sword-game-save-v1";
   const STORAGE_MAX = 12;
+  const SHOP_ITEMS = [
+    { level: 10, price: 300000 },
+    { level: 15, price: 12000000 },
+    { level: 17, price: 53000000 }
+  ];
 
   // ---------- 상태 ----------
   let state = load();
   let busy = false;        // 강화 연출 중 입력 잠금
   let attachedItem = null; // 채팅에 첨부할 아이템
+  let activeStorageTab = "storage";
   let activeRankingTab = "total";
   let rankingState = { total: [], daily: [] };
   let adminPassword = "";
@@ -76,7 +82,9 @@
   const $ = id => document.getElementById(id);
   const el = {
     nickBtn: $("nickBtn"), nickInput: $("nickInput"),
-    storageList: $("storageList"), storageEmpty: $("storageEmpty"),
+    storageTab: $("storageTab"), shopTab: $("shopTab"),
+    storagePane: $("storagePane"), shopPane: $("shopPane"),
+    storageList: $("storageList"), storageEmpty: $("storageEmpty"), shopList: $("shopList"),
     btnEnhance: $("btnEnhance"), btnSell: $("btnSell"), btnStore: $("btnStore"),
     successRate: $("successRate"), costInfo: $("costInfo"),
     chkDown: $("chkDown"), chkDest: $("chkDest"),
@@ -219,6 +227,58 @@
     });
   }
 
+  function renderShop() {
+    el.shopList.innerHTML = "";
+    SHOP_ITEMS.forEach(item => {
+      const d = LEVELS[item.level];
+      if (!d) return;
+
+      const li = document.createElement("li");
+      li.className = "storage-item";
+      li.appendChild(swordVisualEl(item.level, "sword-thumb"));
+
+      const info = document.createElement("div");
+      info.className = "storage-info";
+      const nameEl = document.createElement("div");
+      nameEl.className = "storage-name";
+      nameEl.textContent = `+${d.level} ${d.name}`;
+      nameEl.style.color = tierOf(d.level).blade;
+      const priceEl = document.createElement("div");
+      priceEl.className = "shop-price";
+      priceEl.textContent = fmt(item.price) + " 골드";
+      const noteEl = document.createElement("div");
+      noteEl.className = "shop-note";
+      noteEl.textContent = "구매 시 보관함으로 이동";
+      info.append(nameEl, priceEl, noteEl);
+      li.appendChild(info);
+
+      const btn = document.createElement("button");
+      btn.className = "swap-btn buy-btn";
+      btn.textContent = "구매";
+      btn.disabled = busy || state.gold < item.price || state.storage.length >= STORAGE_MAX;
+      btn.title = state.storage.length >= STORAGE_MAX
+        ? "보관함이 가득 찼습니다"
+        : state.gold < item.price
+          ? "골드가 부족합니다"
+          : `+${d.level} ${d.name} 구매`;
+      btn.onclick = () => buyShopItem(item);
+      li.appendChild(btn);
+
+      el.shopList.appendChild(li);
+    });
+  }
+
+  function setStorageTab(tab) {
+    activeStorageTab = tab;
+    const isStorage = tab === "storage";
+    el.storageTab.classList.toggle("active", isStorage);
+    el.shopTab.classList.toggle("active", !isStorage);
+    el.storageTab.setAttribute("aria-selected", String(isStorage));
+    el.shopTab.setAttribute("aria-selected", String(!isStorage));
+    el.storagePane.hidden = !isStorage;
+    el.shopPane.hidden = isStorage;
+  }
+
   function rankingEntriesWithSelf(tab) {
     normalizeDailyGold();
     const entries = (rankingState[tab] || []).slice();
@@ -288,6 +348,7 @@
     renderCosts();
     renderGold();
     renderStorage();
+    renderShop();
     renderNickname();
   }
 
@@ -327,6 +388,7 @@
     bailoutCheck();
     renderGold();
     renderCosts();
+    renderShop();
     save();
     reportGold();
   }
@@ -352,6 +414,7 @@
     renderGold();
     busy = true;
     renderCosts();
+    renderShop();
     el.swordStage.classList.add("shaking");
 
     setTimeout(() => {
@@ -424,8 +487,32 @@
     showResult(`+${d.level} ${d.name}을(를) 보관함에 넣고 새 검을 받았습니다.`, "info");
     renderSword();
     renderStorage();
+    renderShop();
     renderCosts();
     save();
+  }
+
+  function buyShopItem(item) {
+    if (busy) return;
+    const d = LEVELS[item.level];
+    if (!d) return;
+    if (state.storage.length >= STORAGE_MAX) {
+      showResult(`보관함이 가득 찼습니다. (최대 ${STORAGE_MAX}개)`, "info");
+      return;
+    }
+    if (state.gold < item.price) {
+      showResult(`골드가 부족합니다. (필요: ${fmt(item.price)} 골드)`, "fail");
+      return;
+    }
+    if (!confirm(`+${d.level} ${d.name}을(를) ${fmt(item.price)} 골드에 구매할까요?`)) {
+      return;
+    }
+    state.gold -= item.price;
+    state.storage.push({ level: item.level });
+    showResult(`+${d.level} ${d.name}을(를) 구매해 보관함에 넣었습니다.`, "success");
+    renderStorage();
+    afterGoldChange();
+    setStorageTab("storage");
   }
 
   // 보관함에서 꺼내기 = 강화 중인 검과 자리 교체 (+0 검은 보관하지 않고 버림)
@@ -444,6 +531,7 @@
     showResult(`+${d.level} ${d.name}을(를) 꺼냈습니다.` + (swapped ? " (기존 검은 보관함으로)" : ""), "info");
     renderSword();
     renderStorage();
+    renderShop();
     renderCosts();
     save();
   }
@@ -641,6 +729,8 @@
   el.btnEnhance.addEventListener("click", enhance);
   el.btnSell.addEventListener("click", sell);
   el.btnStore.addEventListener("click", store);
+  el.storageTab.addEventListener("click", () => setStorageTab("storage"));
+  el.shopTab.addEventListener("click", () => setStorageTab("shop"));
   el.rankTotalTab.addEventListener("click", () => setRankingTab("total"));
   el.rankDailyTab.addEventListener("click", () => setRankingTab("daily"));
 
@@ -652,6 +742,7 @@
   });
 
   renderAll();
+  setStorageTab(activeStorageTab);
   bailoutCheck();
   save();
   backend.init();

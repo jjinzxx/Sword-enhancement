@@ -97,6 +97,56 @@ main {
 }
 
 /* ---------- 보관함 ---------- */
+.storage-header {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--border);
+}
+.storage-header h2 {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.storage-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  background: var(--panel-2);
+  border: 2px solid var(--border);
+  border-radius: 4px;
+  padding: 5px;
+}
+.storage-tab {
+  border: 2px solid var(--border);
+  border-bottom-color: var(--border-dark);
+  border-radius: 4px;
+  background: #3a3840;
+  color: var(--muted);
+  padding: 6px 8px;
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 2px 0 var(--border-dark);
+}
+.storage-tab:hover { border-color: var(--gold); color: var(--text); }
+.storage-tab:active { transform: translateY(2px); box-shadow: none; }
+.storage-tab.active {
+  background: var(--gold);
+  color: #2b2410;
+  border-color: #ffe082;
+  border-bottom-color: #9a7320;
+  box-shadow: 0 2px 0 #9a7320;
+}
+.storage-pane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.storage-pane[hidden] { display: none; }
 .storage-list {
   list-style: none;
   overflow-y: auto;
@@ -146,6 +196,16 @@ main {
 }
 .swap-btn:hover { border-color: var(--gold); }
 .swap-btn:active { transform: translateY(2px); box-shadow: none; }
+.swap-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+  transform: none;
+  box-shadow: 0 2px 0 var(--border-dark);
+}
+.shop-list { gap: 8px; }
+.shop-price { color: var(--gold); font-size: 12.5px; font-weight: 800; margin-top: 2px; }
+.shop-note { color: var(--muted); font-size: 11.5px; margin-top: 2px; }
+.buy-btn { min-width: 54px; }
 
 /* ---------- 중앙 강화 패널 ---------- */
 .forge-panel {
