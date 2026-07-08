@@ -216,8 +216,23 @@
     });
   }
 
+  function rankingEntriesWithSelf(tab) {
+    normalizeDailyGold();
+    const entries = (rankingState[tab] || []).slice();
+    const myGold = tab === "daily" ? state.dailyGold : state.gold;
+    const selfIndex = entries.findIndex(e => e.self);
+    if (selfIndex >= 0) {
+      entries[selfIndex] = { ...entries[selfIndex], nickname: state.nickname, gold: myGold, self: true };
+    } else {
+      entries.push({ nickname: state.nickname, gold: myGold, self: true });
+    }
+    return entries
+      .sort((a, b) => (Number(b.gold) || 0) - (Number(a.gold) || 0))
+      .slice(0, 10);
+  }
+
   function renderRanking() {
-    const entries = rankingState[activeRankingTab] || [];
+    const entries = rankingEntriesWithSelf(activeRankingTab);
     el.rankingList.innerHTML = "";
     if (!entries.length) {
       const li = document.createElement("li");
@@ -301,6 +316,7 @@
 
   function reportGold() {
     normalizeDailyGold();
+    renderRanking();
     backend.reportGold(state.nickname, state.gold, state.dailyGold, state.dailyGoldDate);
   }
 
