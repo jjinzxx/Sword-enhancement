@@ -10,15 +10,29 @@
   let state = load();
   let busy = false;        // 강화 연출 중 입력 잠금
   let attachedItem = null; // 채팅에 첨부할 아이템
+  let activeRankingTab = "total";
+  let rankingState = { total: [], daily: [] };
+  let adminPassword = "";
 
   function defaultState() {
     return {
       nickname: "용사" + Math.floor(1000 + Math.random() * 9000),
       clientId: (crypto.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random()),
       gold: DATA.startingGold,
+      dailyGold: 0,
+      dailyGoldDate: todayKey(),
+      lastResetAt: null,
       sword: { level: 0 },
       storage: []
     };
+  }
+
+  function todayKey() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
   }
 
   function clampLevel(lv) {
@@ -36,6 +50,9 @@
         nickname: (typeof s.nickname === "string" && s.nickname.trim()) ? s.nickname.trim().slice(0, 12) : d.nickname,
         clientId: s.clientId || d.clientId,
         gold: Math.max(0, Number(s.gold) || 0),
+        dailyGold: s.dailyGoldDate === todayKey() ? Math.max(0, Number(s.dailyGold) || 0) : 0,
+        dailyGoldDate: s.dailyGoldDate === todayKey() ? s.dailyGoldDate : todayKey(),
+        lastResetAt: typeof s.lastResetAt === "string" ? s.lastResetAt : null,
         sword: { level: clampLevel(s.sword && s.sword.level) },
         storage: Array.isArray(s.storage)
           ? s.storage.slice(0, STORAGE_MAX).map(it => ({ level: clampLevel(it && it.level) }))
@@ -64,6 +81,7 @@
     swordStage: $("swordStage"), swordVisual: $("swordVisual"),
     swordName: $("swordName"), resultMsg: $("resultMsg"),
     goldAmount: $("goldAmount"),
+    rankTotalTab: $("rankTotalTab"), rankDailyTab: $("rankDailyTab"),
     rankingList: $("rankingList"),
     chatMessages: $("chatMessages"), chatForm: $("chatForm"), chatInput: $("chatInput"),
     btnItemLink: $("btnItemLink"), attachBar: $("attachBar"),
@@ -149,6 +167,22 @@
     el.goldAmount.textContent = fmt(state.gold);
   }
 
+  function normalizeDailyGold() {
+    const today = todayKey();
+    if (state.dailyGoldDate !== today) {
+      state.dailyGoldDate = today;
+      state.dailyGold = 0;
+    }
+  }
+
+  function addGold(amount) {
+    amount = Math.max(0, Number(amount) || 0);
+    if (!amount) return;
+    normalizeDailyGold();
+    state.gold += amount;
+    state.dailyGold += amount;
+  }
+
   function renderStorage() {
     el.storageList.innerHTML = "";
     el.storageEmpty.hidden = state.storage.length > 0;
@@ -182,8 +216,16 @@
     });
   }
 
-  function renderRanking(entries) {
+  function renderRanking() {
+    const entries = rankingState[activeRankingTab] || [];
     el.rankingList.innerHTML = "";
+    if (!entries.length) {
+      const li = document.createElement("li");
+      li.className = "ranking-item empty";
+      li.textContent = activeRankingTab === "daily" ? "오늘 획득 기록이 없습니다" : "랭킹 기록이 없습니다";
+      el.rankingList.appendChild(li);
+      return;
+    }
     entries.forEach(e => {
       const li = document.createElement("li");
       li.className = "ranking-item" + (e.self ? " self" : "");
@@ -196,6 +238,27 @@
       li.append(nick, gold);
       el.rankingList.appendChild(li);
     });
+  }
+
+  function renderRankings(nextRankings) {
+    if (Array.isArray(nextRankings)) {
+      rankingState = { total: nextRankings, daily: [] };
+    } else {
+      rankingState = {
+        total: nextRankings.total || [],
+        daily: nextRankings.daily || []
+      };
+    }
+    renderRanking();
+  }
+
+  function setRankingTab(tab) {
+    activeRankingTab = tab;
+    el.rankTotalTab.classList.toggle("active", tab === "total");
+    el.rankDailyTab.classList.toggle("active", tab === "daily");
+    el.rankTotalTab.setAttribute("aria-selected", String(tab === "total"));
+    el.rankDailyTab.setAttribute("aria-selected", String(tab === "daily"));
+    renderRanking();
   }
 
   function renderNickname() {
@@ -231,9 +294,14 @@
       + LEVELS[state.sword.level].sellPrice
       + state.storage.reduce((s, it) => s + LEVELS[it.level].sellPrice, 0);
     if (assets < LEVELS[0].enhanceCost) {
-      state.gold += 500;
+      addGold(500);
       appendChat({ system: true, text: "무일푼이 된 당신에게 긴급 지원금 500 골드가 지급되었습니다." });
     }
+  }
+
+  function reportGold() {
+    normalizeDailyGold();
+    backend.reportGold(state.nickname, state.gold, state.dailyGold, state.dailyGoldDate);
   }
 
   function afterGoldChange() {
@@ -241,7 +309,7 @@
     renderGold();
     renderCosts();
     save();
-    backend.reportGold(state.nickname, state.gold);
+    reportGold();
   }
 
   // ---------- 강화 / 판매 / 보관 / 꺼내기 ----------
@@ -316,7 +384,7 @@
     if (d.level >= 10 && !confirm(`+${d.level} ${d.name}을(를) ${fmt(d.sellPrice)} 골드에 판매할까요?`)) {
       return;
     }
-    state.gold += d.sellPrice;
+    addGold(d.sellPrice);
     state.sword = { level: 0 };
     showResult(`+${d.level} ${d.name}을(를) ${fmt(d.sellPrice)} 골드에 판매했습니다.`, "success");
     renderSword();
@@ -357,6 +425,102 @@
     renderStorage();
     renderCosts();
     save();
+  }
+
+  // ---------- 관리자 명령어 ----------
+  function appendSystem(text) {
+    appendChat({ system: true, text });
+  }
+
+  function showAdminHelp() {
+    appendSystem("관리자 명령어: /admin login <비밀번호>");
+    appendSystem("/admin reset-users : 전체 유저 데이터를 초기화합니다.");
+    appendSystem("/admin reset-me : 현재 브라우저 데이터를 초기화합니다.");
+    appendSystem("/admin logout : 관리자 세션을 종료합니다.");
+  }
+
+  function isAdminLoggedIn() {
+    return Boolean(adminPassword);
+  }
+
+  function resetLocalUser(resetAt) {
+    const clientId = state.clientId;
+    state = defaultState();
+    state.clientId = clientId;
+    state.lastResetAt = resetAt || new Date().toISOString();
+    busy = false;
+    attachedItem = null;
+    save();
+    renderAll();
+    setAttachment(null);
+    reportGold();
+  }
+
+  function handleAdminEvent(event) {
+    if (!event || event.type !== "reset_users" || !event.createdAt) return;
+    const prev = state.lastResetAt ? Date.parse(state.lastResetAt) : 0;
+    const next = Date.parse(event.createdAt);
+    if (!next || next <= prev) return;
+    resetLocalUser(event.createdAt);
+    appendSystem("관리자에 의해 전체 유저 데이터가 초기화되었습니다.");
+  }
+
+  async function handleAdminCommand(text) {
+    const parts = text.split(/\s+/);
+    const command = (parts[1] || "help").toLowerCase();
+    const rest = parts.slice(2).join(" ");
+
+    if (command === "help") {
+      showAdminHelp();
+      return;
+    }
+
+    if (command === "login") {
+      if (!rest) {
+        appendSystem("사용법: /admin login <비밀번호>");
+        return;
+      }
+      const result = await backend.verifyAdminPassword(rest);
+      if (!result.ok) {
+        appendSystem(result.error || "관리자 인증에 실패했습니다.");
+        return;
+      }
+      adminPassword = rest;
+      appendSystem("관리자 모드가 활성화되었습니다.");
+      return;
+    }
+
+    if (command === "logout") {
+      adminPassword = "";
+      appendSystem("관리자 모드가 종료되었습니다.");
+      return;
+    }
+
+    if (!isAdminLoggedIn()) {
+      appendSystem("먼저 /admin login <비밀번호>로 로그인하세요.");
+      return;
+    }
+
+    if (command === "reset-me") {
+      if (!confirm("현재 브라우저의 유저 데이터를 초기화할까요?")) return;
+      resetLocalUser(new Date().toISOString());
+      appendSystem("현재 브라우저 데이터가 초기화되었습니다.");
+      return;
+    }
+
+    if (command === "reset-users") {
+      if (!confirm("전체 유저 데이터를 초기화할까요? 온라인 사용자는 다음 동기화 때 초기화됩니다.")) return;
+      const result = await backend.resetAllUsers(adminPassword);
+      if (!result.ok) {
+        appendSystem(result.error || "전체 유저 데이터 초기화에 실패했습니다.");
+        return;
+      }
+      resetLocalUser(result.resetAt || new Date().toISOString());
+      appendSystem("전체 유저 데이터 초기화 명령을 실행했습니다.");
+      return;
+    }
+
+    appendSystem("알 수 없는 관리자 명령어입니다. /admin help를 입력해 확인하세요.");
   }
 
   // ---------- 채팅 ----------
@@ -417,6 +581,12 @@
     e.preventDefault();
     const text = el.chatInput.value.trim();
     if (!text && !attachedItem) return;
+    if (text.startsWith("/admin")) {
+      el.chatInput.value = "";
+      setAttachment(null);
+      handleAdminCommand(text);
+      return;
+    }
     backend.sendChat({ nickname: state.nickname, text, item: attachedItem });
     el.chatInput.value = "";
     setAttachment(null);
@@ -437,7 +607,7 @@
     el.nickBtn.hidden = false;
     renderNickname();
     save();
-    backend.reportGold(state.nickname, state.gold);
+    reportGold();
   }
   el.nickBtn.addEventListener("click", startNickEdit);
   el.nickInput.addEventListener("blur", commitNick);
@@ -450,10 +620,13 @@
   el.btnEnhance.addEventListener("click", enhance);
   el.btnSell.addEventListener("click", sell);
   el.btnStore.addEventListener("click", store);
+  el.rankTotalTab.addEventListener("click", () => setRankingTab("total"));
+  el.rankDailyTab.addEventListener("click", () => setRankingTab("daily"));
 
   const backend = window.createBackend(window.GAME_CONFIG, {
     onChat: appendChat,
-    onRanking: renderRanking,
+    onRanking: renderRankings,
+    onAdminEvent: handleAdminEvent,
     clientId: state.clientId
   });
 
@@ -461,5 +634,5 @@
   bailoutCheck();
   save();
   backend.init();
-  backend.reportGold(state.nickname, state.gold);
+  reportGold();
 })();

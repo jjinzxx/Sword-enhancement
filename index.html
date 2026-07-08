@@ -61,7 +61,13 @@
     <!-- 우측: 랭킹 + 채팅 -->
     <aside class="right-col">
       <section class="panel ranking-panel">
-        <h2>보유 골드 랭킹</h2>
+        <div class="ranking-header">
+          <h2>골드 랭킹</h2>
+          <div class="ranking-tabs" role="tablist" aria-label="골드 랭킹 종류">
+            <button id="rankTotalTab" class="ranking-tab active" type="button" role="tab" aria-selected="true">전체 골드</button>
+            <button id="rankDailyTab" class="ranking-tab" type="button" role="tab" aria-selected="false">일일 획득</button>
+          </div>
+        </div>
         <ol id="rankingList" class="ranking-list"></ol>
       </section>
 

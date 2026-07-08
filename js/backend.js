@@ -3,14 +3,22 @@
 // 없으면 로컬(오프라인) 모드로 동작한다. 두 모드는 같은 인터페이스를 가진다:
 //   init()                       : 시작 (과거 채팅 로드, 구독 시작)
 //   sendChat({nickname,text,item}) : 채팅 전송
-//   reportGold(nickname, gold)   : 내 골드 보고 (랭킹 갱신)
+//   reportGold(nickname, gold, dailyGold, dailyGoldDate) : 내 골드 보고 (랭킹 갱신)
 //   isOnline                     : 온라인 모드 여부
 window.createBackend = function (config, handlers) {
   const online = config && config.supabaseUrl && config.supabaseKey && window.supabase;
-  return online ? supabaseBackend(config, handlers) : localBackend(handlers);
+  return online ? supabaseBackend(config, handlers) : localBackend(config || {}, handlers);
+
+  function todayKey() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
 
   // ---------- 로컬 모드 ----------
-  function localBackend({ onChat, onRanking, clientId }) {
+  function localBackend(cfg, { onChat, onRanking }) {
     const CHAT_KEY = "sword-game-chat-v1";
     let log = [];
     try { log = JSON.parse(localStorage.getItem(CHAT_KEY)) || []; } catch { log = []; }
@@ -38,18 +46,32 @@ window.createBackend = function (config, handlers) {
         persist();
         onChat(m);
       },
-      reportGold(nickname, gold) {
-        onRanking([{ nickname, gold, self: true }]);
+      reportGold(nickname, gold, dailyGold) {
+        onRanking({
+          total: [{ nickname, gold, self: true }],
+          daily: [{ nickname, gold: dailyGold || 0, self: true }]
+        });
+      },
+      async verifyAdminPassword(password) {
+        if (!cfg.adminPassword) {
+          return { ok: false, error: "오프라인 관리자 비밀번호가 설정되어 있지 않습니다. js/config.js의 adminPassword를 설정하세요." };
+        }
+        return { ok: password === cfg.adminPassword, error: password === cfg.adminPassword ? "" : "관리자 인증에 실패했습니다." };
+      },
+      async resetAllUsers() {
+        log = [];
+        localStorage.removeItem(CHAT_KEY);
+        return { ok: true, resetAt: new Date().toISOString() };
       }
     };
   }
 
   // ---------- 온라인 모드 (Supabase) ----------
-  function supabaseBackend(cfg, { onChat, onRanking, clientId }) {
+  function supabaseBackend(cfg, { onChat, onRanking, onAdminEvent, clientId }) {
     const client = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
     let lastReport = 0;
     let pendingReport = null;
-    let latest = null; // 마지막으로 보고 요청된 {nickname, gold}
+    let latest = null; // 마지막으로 보고 요청된 {nickname, gold, dailyGold, dailyGoldDate}
 
     function mapRow(r) {
       return {
@@ -60,23 +82,54 @@ window.createBackend = function (config, handlers) {
       };
     }
 
+    function mapRankingRows(rows, valueKey) {
+      return rows.map(r => ({
+        nickname: r.nickname,
+        gold: r[valueKey],
+        self: r.client_id === clientId
+      }));
+    }
+
     async function refreshRanking() {
-      const { data, error } = await client
+      const totalReq = client
         .from("sword_players")
         .select("client_id, nickname, gold")
         .order("gold", { ascending: false })
         .limit(10);
-      if (!error && data) {
-        onRanking(data.map(r => ({ nickname: r.nickname, gold: r.gold, self: r.client_id === clientId })));
-      }
+      const dailyReq = client
+        .from("sword_players")
+        .select("client_id, nickname, daily_gold, daily_gold_date")
+        .eq("daily_gold_date", todayKey())
+        .order("daily_gold", { ascending: false })
+        .limit(10);
+      const [totalRes, dailyRes] = await Promise.all([totalReq, dailyReq]);
+      onRanking({
+        total: totalRes.error || !totalRes.data ? [] : mapRankingRows(totalRes.data, "gold"),
+        daily: dailyRes.error || !dailyRes.data ? [] : mapRankingRows(dailyRes.data, "daily_gold")
+      });
     }
 
-    async function upsertPlayer(nickname, gold) {
+    async function upsertPlayer(nickname, gold, dailyGold, dailyGoldDate) {
       await client.from("sword_players").upsert(
-        { client_id: clientId, nickname, gold, updated_at: new Date().toISOString() },
+        {
+          client_id: clientId,
+          nickname,
+          gold,
+          daily_gold: dailyGold || 0,
+          daily_gold_date: dailyGoldDate || todayKey(),
+          updated_at: new Date().toISOString()
+        },
         { onConflict: "client_id" }
       );
       refreshRanking();
+    }
+
+    function mapAdminEvent(row) {
+      return {
+        type: row.event_type,
+        message: row.message || "",
+        createdAt: row.created_at
+      };
     }
 
     return {
@@ -95,6 +148,19 @@ window.createBackend = function (config, handlers) {
             payload => onChat(mapRow(payload.new)))
           .subscribe();
 
+        const { data: eventData } = await client
+          .from("sword_admin_events")
+          .select("*")
+          .order("id", { ascending: false })
+          .limit(1);
+        if (eventData && eventData[0] && onAdminEvent) onAdminEvent(mapAdminEvent(eventData[0]));
+
+        client
+          .channel("sword_admin_events_feed")
+          .on("postgres_changes", { event: "INSERT", schema: "public", table: "sword_admin_events" },
+            payload => { if (onAdminEvent) onAdminEvent(mapAdminEvent(payload.new)); })
+          .subscribe();
+
         refreshRanking();
         setInterval(refreshRanking, 15000);
       },
@@ -110,19 +176,30 @@ window.createBackend = function (config, handlers) {
         client.from("sword_chat").insert({ nickname: "[알림]", message: text }).then(() => {});
       },
       // 골드 보고는 5초에 1회로 제한 (강화 연타 시 과도한 요청 방지)
-      reportGold(nickname, gold) {
-        latest = { nickname, gold };
+      reportGold(nickname, gold, dailyGold, dailyGoldDate) {
+        latest = { nickname, gold, dailyGold, dailyGoldDate };
         const now = Date.now();
         if (now - lastReport > 5000) {
           lastReport = now;
-          upsertPlayer(latest.nickname, latest.gold);
+          upsertPlayer(latest.nickname, latest.gold, latest.dailyGold, latest.dailyGoldDate);
         } else if (!pendingReport) {
           pendingReport = setTimeout(() => {
             pendingReport = null;
             lastReport = Date.now();
-            upsertPlayer(latest.nickname, latest.gold);
+            upsertPlayer(latest.nickname, latest.gold, latest.dailyGold, latest.dailyGoldDate);
           }, 5000 - (now - lastReport));
         }
+      },
+      async verifyAdminPassword(password) {
+        const { data, error } = await client.rpc("admin_verify_sword_password", { input_password: password });
+        if (error) return { ok: false, error: "관리자 인증 RPC를 사용할 수 없습니다. sql/setup.sql을 다시 적용하세요." };
+        return { ok: data === true, error: data === true ? "" : "관리자 인증에 실패했습니다." };
+      },
+      async resetAllUsers(password) {
+        const { data, error } = await client.rpc("admin_reset_sword_game", { input_password: password });
+        if (error) return { ok: false, error: "전체 초기화 RPC 실행에 실패했습니다. 비밀번호 또는 SQL 설정을 확인하세요." };
+        refreshRanking();
+        return { ok: true, resetAt: data };
       }
     };
   }
