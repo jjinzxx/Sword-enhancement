@@ -251,7 +251,7 @@ main {
 .ranking-header {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   margin-bottom: 10px;
   padding-bottom: 8px;
   border-bottom: 2px solid var(--border);
@@ -264,23 +264,32 @@ main {
 .ranking-tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 4px;
+  gap: 6px;
+  background: var(--panel-2);
+  border: 2px solid var(--border);
+  border-radius: 4px;
+  padding: 5px;
 }
 .ranking-tab {
   border: 2px solid var(--border);
+  border-bottom-color: var(--border-dark);
   border-radius: 4px;
-  background: var(--panel-2);
+  background: #3a3840;
   color: var(--muted);
-  padding: 5px 6px;
+  padding: 6px 8px;
   font-size: 12.5px;
   font-weight: 800;
   cursor: pointer;
+  box-shadow: 0 2px 0 var(--border-dark);
 }
-.ranking-tab:hover { border-color: var(--gold); }
+.ranking-tab:hover { border-color: var(--gold); color: var(--text); }
+.ranking-tab:active { transform: translateY(2px); box-shadow: none; }
 .ranking-tab.active {
-  background: #3a3840;
-  color: var(--gold);
-  border-color: var(--gold);
+  background: var(--gold);
+  color: #2b2410;
+  border-color: #ffe082;
+  border-bottom-color: #9a7320;
+  box-shadow: 0 2px 0 #9a7320;
 }
 
 .ranking-list {
