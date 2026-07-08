@@ -374,9 +374,7 @@
         } else {
           flashStage("flash-destroy");
           showResult(`+${lv} ${d.name}이(가) 파괴되었습니다... 새로운 검을 받았습니다.`, "fail");
-          if (lv >= 18) {
-            backend.sendSystem(`${state.nickname}님의 +${lv} ${d.name}이(가) 산산조각 났습니다...`);
-          }
+          backend.sendSystem(`${state.nickname}님의 +${lv} ${d.name}이(가) 산산조각 났습니다...`);
           state.sword = { level: 0 };
         }
       } else if (useDown || lv === 0) {
