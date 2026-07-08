@@ -15,7 +15,8 @@ select
   to_regclass('public.sword_players') as sword_players,
   to_regclass('public.sword_admin_events') as sword_admin_events,
   to_regprocedure('public.admin_verify_sword_password(text)') as admin_verify_sword_password,
-  to_regprocedure('public.admin_reset_sword_game(text)') as admin_reset_sword_game;
+  to_regprocedure('public.admin_reset_sword_game(text)') as admin_reset_sword_game,
+  to_regprocedure('public.admin_start_sword_hot_time(text)') as admin_start_sword_hot_time;
 
 -- 2) Realtime publication에서 제거
 do $$
@@ -47,6 +48,7 @@ end $$;
 -- 3) 관리자 RPC 제거
 drop function if exists public.admin_verify_sword_password(text);
 drop function if exists public.admin_reset_sword_game(text);
+drop function if exists public.admin_start_sword_hot_time(text);
 
 -- 4) 게임용 테이블 제거
 drop table if exists public.sword_admin_events cascade;

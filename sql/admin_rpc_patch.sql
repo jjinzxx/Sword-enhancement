@@ -91,7 +91,7 @@ begin
     raise exception 'invalid admin password';
   end if;
 
-  delete from public.sword_players;
+  truncate table public.sword_players;
   insert into public.sword_admin_events(event_type, message, created_at)
     values ('reset_users', '전체 유저 데이터 초기화', reset_at);
   insert into public.sword_chat(nickname, message, created_at)
@@ -101,10 +101,32 @@ begin
 end;
 $$;
 
+create or replace function public.admin_start_sword_hot_time(input_password text)
+returns timestamptz
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  started_at timestamptz := now();
+begin
+  if input_password <> '0823' then
+    raise exception 'invalid admin password';
+  end if;
+
+  insert into public.sword_admin_events(event_type, message, created_at)
+    values ('hot_time', '10분간 강화비용 5% 감소, 성공확률 5% 증가', started_at);
+
+  return started_at;
+end;
+$$;
+
 revoke all on function public.admin_verify_sword_password(text) from public;
 revoke all on function public.admin_reset_sword_game(text) from public;
+revoke all on function public.admin_start_sword_hot_time(text) from public;
 grant execute on function public.admin_verify_sword_password(text) to anon, authenticated;
 grant execute on function public.admin_reset_sword_game(text) to anon, authenticated;
+grant execute on function public.admin_start_sword_hot_time(text) to anon, authenticated;
 
 do $$
 begin

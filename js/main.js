@@ -5,6 +5,9 @@
   const MAX_LEVEL = LEVELS.length - 1;
   const SAVE_KEY = "sword-game-save-v1";
   const STORAGE_MAX = 12;
+  const HOT_DURATION_MS = 10 * 60 * 1000;
+  const HOT_COST_MULTIPLIER = 0.95;
+  const HOT_SUCCESS_MULTIPLIER = 1.05;
   const SHOP_ITEMS = [
     { level: 10, price: 300000 },
     { level: 15, price: 12000000 },
@@ -19,6 +22,8 @@
   let activeRankingTab = "total";
   let rankingState = { total: [], daily: [] };
   let adminPassword = "";
+  let hotTime = { startedAt: null, activeUntil: 0 };
+  let hotTimeTimer = null;
 
   function defaultState() {
     return {
@@ -78,6 +83,30 @@
 
   const fmt = n => Number(n).toLocaleString("ko-KR");
 
+  function isHotTimeActive() {
+    return Date.now() < hotTime.activeUntil;
+  }
+
+  function effectiveEnhanceCost(baseCost) {
+    return isHotTimeActive() ? Math.floor(baseCost * HOT_COST_MULTIPLIER) : baseCost;
+  }
+
+  function effectiveSuccessRate(baseRate) {
+    const rate = isHotTimeActive() ? baseRate * HOT_SUCCESS_MULTIPLIER : baseRate;
+    return Math.min(100, Number(rate.toFixed(2)));
+  }
+
+  function fmtRate(rate) {
+    return Number(rate).toFixed(2).replace(/\.?0+$/, "");
+  }
+
+  function fmtRemaining(ms) {
+    const total = Math.max(0, Math.ceil(ms / 1000));
+    const min = Math.floor(total / 60);
+    const sec = String(total % 60).padStart(2, "0");
+    return `${min}:${sec}`;
+  }
+
   // ---------- DOM ----------
   const $ = id => document.getElementById(id);
   const el = {
@@ -89,6 +118,7 @@
     successRate: $("successRate"), costInfo: $("costInfo"),
     chkDown: $("chkDown"), chkDest: $("chkDest"),
     downCost: $("downCost"), destCost: $("destCost"),
+    hotTimeBanner: $("hotTimeBanner"),
     swordStage: $("swordStage"), swordVisual: $("swordVisual"),
     swordName: $("swordName"), resultMsg: $("resultMsg"),
     goldAmount: $("goldAmount"),
@@ -148,15 +178,32 @@
     el.swordName.style.color = tierOf(d.level).blade;
   }
 
+  function renderHotTime() {
+    if (!isHotTimeActive()) {
+      hotTime.activeUntil = 0;
+      el.hotTimeBanner.hidden = true;
+      if (hotTimeTimer) {
+        clearInterval(hotTimeTimer);
+        hotTimeTimer = null;
+      }
+      return;
+    }
+    el.hotTimeBanner.hidden = false;
+    el.hotTimeBanner.textContent = `핫타임 ${fmtRemaining(hotTime.activeUntil - Date.now())} 남음 · 강화비용 5% 감소 · 성공확률 5% 증가`;
+  }
+
   function renderCosts() {
     const lv = state.sword.level;
     const d = LEVELS[lv];
     const isMax = lv >= MAX_LEVEL;
+    const enhanceCost = effectiveEnhanceCost(d.enhanceCost);
+    const successRate = effectiveSuccessRate(d.successRate);
 
-    el.successRate.textContent = isMax ? "MAX" : d.successRate + " %";
+    renderHotTime();
+    el.successRate.textContent = isMax ? "MAX" : fmtRate(successRate) + " %";
     el.costInfo.textContent = isMax
       ? `최대 강화 달성! 판매가 ${fmt(d.sellPrice)} 골드`
-      : `강화 비용 ${fmt(d.enhanceCost)} 골드 · 실패 시 파괴 확률 ${d.destroyRate}% · 판매가 ${fmt(d.sellPrice)} 골드`;
+      : `강화 비용 ${fmt(enhanceCost)} 골드 · 실패 시 파괴 확률 ${d.destroyRate}% · 판매가 ${fmt(d.sellPrice)} 골드`;
 
     const downAvail = !isMax && lv > 0 && d.downgradeProtectCost > 0;
     const destAvail = !isMax && d.destroyRate > 0;
@@ -399,9 +446,11 @@
     const lv = state.sword.level;
     if (lv >= MAX_LEVEL) return;
     const d = LEVELS[lv];
+    const enhanceCost = effectiveEnhanceCost(d.enhanceCost);
+    const successRate = effectiveSuccessRate(d.successRate);
     const useDown = el.chkDown.checked && !el.chkDown.disabled;
     const useDest = el.chkDest.checked && !el.chkDest.disabled;
-    const total = d.enhanceCost
+    const total = enhanceCost
       + (useDown ? d.downgradeProtectCost : 0)
       + (useDest ? d.destroyProtectCost : 0);
 
@@ -422,7 +471,7 @@
       busy = false;
 
       const roll = Math.random() * 100;
-      if (roll < d.successRate) {
+      if (roll < successRate) {
         state.sword.level = lv + 1;
         const nd = LEVELS[state.sword.level];
         flashStage("flash-success");
@@ -537,12 +586,31 @@
   }
 
   // ---------- 관리자 명령어 ----------
+  function applyHotTime(startedAt) {
+    const start = Date.parse(startedAt);
+    if (!start) return false;
+    const activeUntil = start + HOT_DURATION_MS;
+    if (Date.now() >= activeUntil) return false;
+    if (hotTime.startedAt === startedAt && hotTime.activeUntil === activeUntil) return false;
+
+    hotTime = { startedAt, activeUntil };
+    renderCosts();
+    if (!hotTimeTimer) {
+      hotTimeTimer = setInterval(() => {
+        renderHotTime();
+        if (!isHotTimeActive()) renderCosts();
+      }, 1000);
+    }
+    return true;
+  }
+
   function appendSystem(text) {
     appendChat({ system: true, text });
   }
 
   function showAdminHelp() {
     appendSystem("관리자 명령어: /admin login <비밀번호>");
+    appendSystem("/admin hot : 10분간 강화비용 5% 감소, 성공확률 5% 증가");
     appendSystem("/admin reset-users : 전체 유저 데이터를 초기화합니다.");
     appendSystem("/admin reset-me : 현재 브라우저 데이터를 초기화합니다.");
     appendSystem("/admin logout : 관리자 세션을 종료합니다.");
@@ -566,7 +634,14 @@
   }
 
   function handleAdminEvent(event) {
-    if (!event || event.type !== "reset_users" || !event.createdAt) return;
+    if (!event || !event.createdAt) return;
+    if (event.type === "hot_time") {
+      if (applyHotTime(event.createdAt)) {
+        appendSystem("핫타임 시작! 10분간 강화비용 5% 감소, 성공확률 5% 증가");
+      }
+      return;
+    }
+    if (event.type !== "reset_users") return;
     const prev = state.lastResetAt ? Date.parse(state.lastResetAt) : 0;
     const next = Date.parse(event.createdAt);
     if (!next || next <= prev) return;
@@ -626,6 +701,17 @@
       }
       resetLocalUser(result.resetAt || new Date().toISOString());
       appendSystem("전체 유저 데이터 초기화 명령을 실행했습니다.");
+      return;
+    }
+
+    if (command === "hot") {
+      if (!confirm("10분 핫타임을 시작할까요?")) return;
+      const result = await backend.startHotTime(adminPassword);
+      if (!result.ok) {
+        appendSystem(result.error || "핫타임 시작에 실패했습니다.");
+        return;
+      }
+      handleAdminEvent({ type: "hot_time", createdAt: result.startedAt || new Date().toISOString() });
       return;
     }
 

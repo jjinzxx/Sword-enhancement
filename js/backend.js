@@ -62,6 +62,9 @@ window.createBackend = function (config, handlers) {
         log = [];
         localStorage.removeItem(CHAT_KEY);
         return { ok: true, resetAt: new Date().toISOString() };
+      },
+      async startHotTime() {
+        return { ok: true, startedAt: new Date().toISOString() };
       }
     };
   }
@@ -161,8 +164,10 @@ window.createBackend = function (config, handlers) {
           .from("sword_admin_events")
           .select("*")
           .order("id", { ascending: false })
-          .limit(1);
-        if (eventData && eventData[0] && onAdminEvent) onAdminEvent(mapAdminEvent(eventData[0]));
+          .limit(20);
+        if (eventData && onAdminEvent) {
+          eventData.reverse().forEach(row => onAdminEvent(mapAdminEvent(row)));
+        }
 
         client
           .channel("sword_admin_events_feed")
@@ -219,6 +224,16 @@ window.createBackend = function (config, handlers) {
         }
         refreshRanking();
         return { ok: true, resetAt: data };
+      },
+      async startHotTime(password) {
+        const { data, error } = await client.rpc("admin_start_sword_hot_time", { input_password: password });
+        if (error) {
+          return {
+            ok: false,
+            error: rpcErrorMessage("핫타임 RPC 실행에 실패했습니다. sql/admin_rpc_patch.sql 적용 여부를 확인하세요.", error)
+          };
+        }
+        return { ok: true, startedAt: data };
       }
     };
   }

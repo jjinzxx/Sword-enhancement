@@ -243,6 +243,20 @@ main {
 .rate-label { font-size: 13px; color: var(--muted); font-weight: 700; }
 .rate-value { font-size: 32px; font-weight: 800; color: var(--gold); margin: 2px 0; }
 .cost-info { font-size: 12.5px; color: var(--muted); }
+.hot-time-banner {
+  width: min(420px, calc(100% - 24px));
+  border: 2px solid var(--gold);
+  border-bottom-color: #9a7320;
+  border-radius: 4px;
+  background: rgba(245, 195, 76, 0.12);
+  color: var(--success);
+  padding: 8px 12px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 800;
+  box-shadow: 0 2px 0 var(--border-dark);
+}
+.hot-time-banner[hidden] { display: none; }
 
 .protect-block { display: flex; flex-direction: column; gap: 6px; }
 .protect-row {

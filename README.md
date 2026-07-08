@@ -58,6 +58,7 @@ images/swords/30.png   ← +30 검
 채팅 입력창에서 `/admin help`를 입력하면 관리자 명령어를 볼 수 있습니다.
 
 - `/admin login <비밀번호>`: 관리자 모드 로그인
+- `/admin hot`: 10분간 강화비용 5% 감소, 성공확률 5% 증가
 - `/admin reset-users`: 전체 유저 데이터 초기화 신호 전송
 - `/admin reset-me`: 현재 브라우저 데이터만 초기화
 - `/admin logout`: 관리자 모드 종료
