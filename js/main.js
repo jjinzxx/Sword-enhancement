@@ -581,7 +581,7 @@
     e.preventDefault();
     const text = el.chatInput.value.trim();
     if (!text && !attachedItem) return;
-    if (text.startsWith("/admin")) {
+    if (/^\/admin(?:\s|$)/i.test(text)) {
       el.chatInput.value = "";
       setAttachment(null);
       handleAdminCommand(text);
