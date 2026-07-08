@@ -98,8 +98,6 @@ begin
   truncate table public.sword_players;
   insert into public.sword_admin_events(event_type, message, created_at)
     values ('reset_users', '전체 유저 데이터 초기화', reset_at);
-  insert into public.sword_chat(nickname, message, created_at)
-    values ('[알림]', '관리자가 전체 유저 데이터를 초기화했습니다.', reset_at);
 
   return reset_at;
 end;

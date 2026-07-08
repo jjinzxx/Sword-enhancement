@@ -608,12 +608,19 @@
     appendChat({ system: true, text });
   }
 
+  function appendAdmin(text) {
+    appendChat({ admin: true, text });
+  }
+
   function showAdminHelp() {
-    appendSystem("관리자 명령어: /admin login <비밀번호>");
-    appendSystem("/admin hot : 10분간 강화비용 5% 감소, 성공확률 5% 증가");
-    appendSystem("/admin reset-users : 전체 유저 데이터를 초기화합니다.");
-    appendSystem("/admin reset-me : 현재 브라우저 데이터를 초기화합니다.");
-    appendSystem("/admin logout : 관리자 세션을 종료합니다.");
+    appendAdmin([
+      "관리자 명령어",
+      "/admin login <비밀번호> : 관리자 모드 로그인",
+      "/admin hot : 10분간 강화비용 5% 감소, 성공확률 5% 증가",
+      "/admin reset-users : 전체 유저 데이터를 초기화합니다.",
+      "/admin reset-me : 현재 브라우저 데이터를 초기화합니다.",
+      "/admin logout : 관리자 세션을 종료합니다."
+    ].join("\n"));
   }
 
   function isAdminLoggedIn() {
@@ -636,9 +643,7 @@
   function handleAdminEvent(event) {
     if (!event || !event.createdAt) return;
     if (event.type === "hot_time") {
-      if (applyHotTime(event.createdAt)) {
-        appendSystem("핫타임 시작! 10분간 강화비용 5% 감소, 성공확률 5% 증가");
-      }
+      applyHotTime(event.createdAt);
       return;
     }
     if (event.type !== "reset_users") return;
@@ -646,7 +651,6 @@
     const next = Date.parse(event.createdAt);
     if (!next || next <= prev) return;
     resetLocalUser(event.createdAt);
-    appendSystem("관리자에 의해 전체 유저 데이터가 초기화되었습니다.");
   }
 
   async function handleAdminCommand(text) {
@@ -661,34 +665,34 @@
 
     if (command === "login") {
       if (!rest) {
-        appendSystem("사용법: /admin login <비밀번호>");
+        appendAdmin("사용법: /admin login <비밀번호>");
         return;
       }
       const result = await backend.verifyAdminPassword(rest);
       if (!result.ok) {
-        appendSystem(result.error || "관리자 인증에 실패했습니다.");
+        appendAdmin(result.error || "관리자 인증에 실패했습니다.");
         return;
       }
       adminPassword = rest;
-      appendSystem("관리자 모드가 활성화되었습니다.");
+      appendAdmin("관리자 모드가 활성화되었습니다.");
       return;
     }
 
     if (command === "logout") {
       adminPassword = "";
-      appendSystem("관리자 모드가 종료되었습니다.");
+      appendAdmin("관리자 모드가 종료되었습니다.");
       return;
     }
 
     if (!isAdminLoggedIn()) {
-      appendSystem("먼저 /admin login <비밀번호>로 로그인하세요.");
+      appendAdmin("먼저 /admin login <비밀번호>로 로그인하세요.");
       return;
     }
 
     if (command === "reset-me") {
       if (!confirm("현재 브라우저의 유저 데이터를 초기화할까요?")) return;
       resetLocalUser(new Date().toISOString());
-      appendSystem("현재 브라우저 데이터가 초기화되었습니다.");
+      appendAdmin("현재 브라우저 데이터가 초기화되었습니다.");
       return;
     }
 
@@ -696,11 +700,11 @@
       if (!confirm("전체 유저 데이터를 초기화할까요? 온라인 사용자는 다음 동기화 때 초기화됩니다.")) return;
       const result = await backend.resetAllUsers(adminPassword);
       if (!result.ok) {
-        appendSystem(result.error || "전체 유저 데이터 초기화에 실패했습니다.");
+        appendAdmin(result.error || "전체 유저 데이터 초기화에 실패했습니다.");
         return;
       }
       resetLocalUser(result.resetAt || new Date().toISOString());
-      appendSystem("전체 유저 데이터 초기화 명령을 실행했습니다.");
+      appendAdmin("전체 유저 데이터 초기화 명령을 실행했습니다.");
       return;
     }
 
@@ -708,14 +712,15 @@
       if (!confirm("10분 핫타임을 시작할까요?")) return;
       const result = await backend.startHotTime(adminPassword);
       if (!result.ok) {
-        appendSystem(result.error || "핫타임 시작에 실패했습니다.");
+        appendAdmin(result.error || "핫타임 시작에 실패했습니다.");
         return;
       }
       handleAdminEvent({ type: "hot_time", createdAt: result.startedAt || new Date().toISOString() });
+      appendAdmin("핫타임을 시작했습니다. 10분간 강화비용 5% 감소, 성공확률 5% 증가가 적용됩니다.");
       return;
     }
 
-    appendSystem("알 수 없는 관리자 명령어입니다. /admin help를 입력해 확인하세요.");
+    appendAdmin("알 수 없는 관리자 명령어입니다. /admin help를 입력해 확인하세요.");
   }
 
   // ---------- 채팅 ----------
@@ -732,7 +737,10 @@
   function appendChat(msg) {
     const div = document.createElement("div");
     const isSystem = msg.system || msg.nickname === "[알림]";
-    if (isSystem) {
+    if (msg.admin) {
+      div.className = "chat-msg admin";
+      div.textContent = msg.text;
+    } else if (isSystem) {
       div.className = "chat-msg system";
       div.textContent = msg.text;
     } else {
