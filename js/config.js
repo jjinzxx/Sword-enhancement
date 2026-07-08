@@ -1,0 +1,4 @@
+window.GAME_CONFIG = {
+  supabaseUrl: "https://lfvoyvnwvziqedurbhex.supabase.co",
+  supabaseKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxmdm95dm53dnppcWVkdXJiaGV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyMjY3ODcsImV4cCI6MjA5ODgwMjc4N30.jAik4_PFr8Mts3QnV8ubk7nWLDBVaT_aIlG0QDN3pDE"
+};
