@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>검 키우기</title>
-  <link rel="stylesheet" href="css/style.css?v=16">
+  <link rel="stylesheet" href="css/style.css?v=17">
 </head>
 <body>
   <header>
@@ -52,6 +52,10 @@
       <div id="hotTimeBanner" class="hot-time-banner" hidden></div>
 
       <div class="protect-block">
+        <label class="protect-row boost-row">
+          <input type="checkbox" id="chkBoost">
+          강화 확률 업 사용 (+5%, 보유 <span id="boostCount">0</span>개)
+        </label>
         <label class="protect-row">
           <input type="checkbox" id="chkDown">
           하락 보호 (<span id="downCost">0</span> 골드)
@@ -101,9 +105,9 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="js/config.js?v=16"></script>
-  <script src="data/swords.js?v=16"></script>
-  <script src="js/backend.js?v=16"></script>
-  <script src="js/main.js?v=16"></script>
+  <script src="js/config.js?v=17"></script>
+  <script src="data/swords.js?v=17"></script>
+  <script src="js/backend.js?v=17"></script>
+  <script src="js/main.js?v=17"></script>
 </body>
 </html>

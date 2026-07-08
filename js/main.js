@@ -8,6 +8,8 @@
   const HOT_DURATION_MS = 10 * 60 * 1000;
   const HOT_COST_MULTIPLIER = 0.95;
   const HOT_SUCCESS_MULTIPLIER = 1.05;
+  const DAILY_REWARD_BOOST_COUNT = 1;
+  const BOOST_SUCCESS_BONUS = 5;
   const SHOP_ITEMS = [
     { level: 10, price: 300000 },
     { level: 15, price: 12000000 },
@@ -33,6 +35,8 @@
       gold: DATA.startingGold,
       dailyGold: 0,
       dailyGoldDate: todayKey(),
+      lastDailyRewardDate: null,
+      boostItems: 0,
       lastResetAt: null,
       sword: { level: 0 },
       storage: []
@@ -64,6 +68,8 @@
         gold: Math.max(0, Number(s.gold) || 0),
         dailyGold: s.dailyGoldDate === todayKey() ? Math.max(0, Number(s.dailyGold) || 0) : 0,
         dailyGoldDate: s.dailyGoldDate === todayKey() ? s.dailyGoldDate : todayKey(),
+        lastDailyRewardDate: typeof s.lastDailyRewardDate === "string" ? s.lastDailyRewardDate : null,
+        boostItems: Math.max(0, Math.floor(Number(s.boostItems) || 0)),
         lastResetAt: typeof s.lastResetAt === "string" ? s.lastResetAt : null,
         sword: { level: clampLevel(s.sword && s.sword.level) },
         storage: Array.isArray(s.storage)
@@ -104,9 +110,10 @@
     return isHotTimeActive() ? Math.floor(baseCost * HOT_COST_MULTIPLIER) : baseCost;
   }
 
-  function effectiveSuccessRate(baseRate) {
+  function effectiveSuccessRate(baseRate, useBoost) {
     const rate = isHotTimeActive() ? baseRate * HOT_SUCCESS_MULTIPLIER : baseRate;
-    return Math.min(100, Number(rate.toFixed(2)));
+    const boostedRate = useBoost ? rate + BOOST_SUCCESS_BONUS : rate;
+    return Math.min(100, Number(boostedRate.toFixed(2)));
   }
 
   function fmtRate(rate) {
@@ -143,6 +150,7 @@
     btnEnhance: $("btnEnhance"), btnSell: $("btnSell"), btnStore: $("btnStore"),
     successRate: $("successRate"), costInfo: $("costInfo"),
     chkDown: $("chkDown"), chkDest: $("chkDest"),
+    chkBoost: $("chkBoost"), boostCount: $("boostCount"),
     downCost: $("downCost"), destCost: $("destCost"),
     hotTimeBanner: $("hotTimeBanner"),
     swordStage: $("swordStage"), swordVisual: $("swordVisual"),
@@ -219,16 +227,23 @@
     const d = LEVELS[lv];
     const isMax = lv >= MAX_LEVEL;
     const enhanceCost = effectiveEnhanceCost(d.enhanceCost);
-    const successRate = effectiveSuccessRate(d.successRate);
+    const boostAvail = !isMax && state.boostItems > 0;
+    const useBoost = el.chkBoost.checked && boostAvail;
+    const successRate = effectiveSuccessRate(d.successRate, useBoost);
 
     renderHotTime();
     el.successRate.textContent = isMax ? "MAX" : fmtRate(successRate) + " %";
     el.costInfo.textContent = isMax
       ? `최대 강화 달성! 판매가 ${fmt(d.sellPrice)} 골드`
-      : `강화 비용 ${fmt(enhanceCost)} 골드 · 실패 시 파괴 확률 ${d.destroyRate}% · 판매가 ${fmt(d.sellPrice)} 골드`;
+      : `강화 비용 ${fmt(enhanceCost)} 골드 · 실패 시 파괴 확률 ${d.destroyRate}% · 판매가 ${fmt(d.sellPrice)} 골드`
+        + (useBoost ? ` · 확률 업 +${BOOST_SUCCESS_BONUS}% 적용` : "");
 
     const downAvail = !isMax && lv > 0 && d.downgradeProtectCost > 0;
     const destAvail = !isMax && d.destroyRate > 0;
+    el.boostCount.textContent = fmt(state.boostItems);
+    el.chkBoost.disabled = !boostAvail;
+    if (!boostAvail) el.chkBoost.checked = false;
+    el.chkBoost.parentElement.classList.toggle("disabled", !boostAvail);
     el.downCost.textContent = fmt(d.downgradeProtectCost);
     el.destCost.textContent = fmt(d.destroyProtectCost);
     el.chkDown.disabled = !downAvail;
@@ -421,6 +436,16 @@
     renderNickname();
   }
 
+  function grantDailyLoginReward() {
+    const today = todayKey();
+    if (state.lastDailyRewardDate === today) return false;
+    state.lastDailyRewardDate = today;
+    state.boostItems += DAILY_REWARD_BOOST_COUNT;
+    save();
+    appendSystem(`일일 접속 보상으로 강화 확률 업 아이템 ${DAILY_REWARD_BOOST_COUNT}개를 받았습니다.`);
+    return true;
+  }
+
   // ---------- 결과 메시지 ----------
   let resultTimer = null;
   function showResult(text, kind) {
@@ -469,7 +494,8 @@
     if (lv >= MAX_LEVEL) return;
     const d = LEVELS[lv];
     const enhanceCost = effectiveEnhanceCost(d.enhanceCost);
-    const successRate = effectiveSuccessRate(d.successRate);
+    const useBoost = el.chkBoost.checked && !el.chkBoost.disabled && state.boostItems > 0;
+    const successRate = effectiveSuccessRate(d.successRate, useBoost);
     const useDown = el.chkDown.checked && !el.chkDown.disabled;
     const useDest = el.chkDest.checked && !el.chkDest.disabled;
     const total = enhanceCost
@@ -482,6 +508,7 @@
     }
 
     state.gold -= total;
+    if (useBoost) state.boostItems -= 1;
     renderGold();
     busy = true;
     renderCosts();
@@ -842,6 +869,7 @@
   el.btnEnhance.addEventListener("click", enhance);
   el.btnSell.addEventListener("click", sell);
   el.btnStore.addEventListener("click", store);
+  el.chkBoost.addEventListener("change", renderCosts);
   el.storageTab.addEventListener("click", () => setStorageTab("storage"));
   el.shopTab.addEventListener("click", () => setStorageTab("shop"));
   el.rankTotalTab.addEventListener("click", () => setRankingTab("total"));
@@ -854,6 +882,7 @@
     clientId: state.clientId
   });
 
+  grantDailyLoginReward();
   renderAll();
   setStorageTab(activeStorageTab);
   startHotTimeClock();
