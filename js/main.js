@@ -209,6 +209,8 @@
     const d = LEVELS[state.sword.level];
     el.swordVisual.innerHTML = "";
     el.swordVisual.appendChild(swordVisualEl(d.level, "sword-main"));
+    el.swordName.classList.add("notranslate");
+    el.swordName.setAttribute("translate", "no");
     el.swordName.textContent = `+${d.level} ${d.name}`;
     el.swordName.style.color = tierOf(d.level).blade;
   }
@@ -292,7 +294,8 @@
       const info = document.createElement("div");
       info.className = "storage-info";
       const nameEl = document.createElement("div");
-      nameEl.className = "storage-name";
+      nameEl.className = "storage-name notranslate";
+      nameEl.setAttribute("translate", "no");
       nameEl.textContent = `+${d.level} ${d.name}`;
       nameEl.style.color = tierOf(d.level).blade;
       const priceEl = document.createElement("div");
@@ -325,7 +328,8 @@
       const info = document.createElement("div");
       info.className = "storage-info";
       const nameEl = document.createElement("div");
-      nameEl.className = "storage-name";
+      nameEl.className = "storage-name notranslate";
+      nameEl.setAttribute("translate", "no");
       nameEl.textContent = `+${d.level} ${d.name}`;
       nameEl.style.color = tierOf(d.level).blade;
       const priceEl = document.createElement("div");
@@ -783,7 +787,8 @@
   // ---------- 채팅 ----------
   function itemChipEl(item) {
     const chip = document.createElement("span");
-    chip.className = "item-chip";
+    chip.className = "item-chip notranslate";
+    chip.setAttribute("translate", "no");
     const lv = clampLevel(item.level);
     chip.textContent = `+${lv} ${item.name || LEVELS[lv].name}`;
     chip.style.borderColor = tierOf(lv).blade;
