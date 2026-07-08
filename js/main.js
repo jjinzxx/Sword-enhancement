@@ -55,7 +55,10 @@
         lastResetAt: typeof s.lastResetAt === "string" ? s.lastResetAt : null,
         sword: { level: clampLevel(s.sword && s.sword.level) },
         storage: Array.isArray(s.storage)
-          ? s.storage.slice(0, STORAGE_MAX).map(it => ({ level: clampLevel(it && it.level) }))
+          ? s.storage
+            .map(it => ({ level: clampLevel(it && it.level) }))
+            .filter(it => it.level > 0)
+            .slice(0, STORAGE_MAX)
           : []
       };
     } catch {
@@ -160,7 +163,7 @@
 
     el.btnEnhance.disabled = busy || isMax;
     el.btnSell.disabled = busy;
-    el.btnStore.disabled = busy || state.storage.length >= STORAGE_MAX;
+    el.btnStore.disabled = busy || lv <= 0 || state.storage.length >= STORAGE_MAX;
   }
 
   function renderGold() {
@@ -409,6 +412,10 @@
 
   function store() {
     if (busy) return;
+    if (state.sword.level <= 0) {
+      showResult("+0 검은 보관할 수 없습니다.", "info");
+      return;
+    }
     if (state.storage.length >= STORAGE_MAX) {
       showResult(`보관함이 가득 찼습니다. (최대 ${STORAGE_MAX}개)`, "info");
       return;
