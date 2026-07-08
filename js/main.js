@@ -23,7 +23,8 @@
   let rankingState = { total: [], daily: [] };
   let adminPassword = "";
   let hotTime = { startedAt: null, activeUntil: 0 };
-  let hotTimeTimer = null;
+  let hotTimeClock = null;
+  let hotTimeWasActive = false;
 
   function defaultState() {
     return {
@@ -83,8 +84,20 @@
 
   const fmt = n => Number(n).toLocaleString("ko-KR");
 
+  function scheduledHotTimeUntil(now) {
+    const d = new Date(now);
+    if (d.getMinutes() >= 10) return 0;
+    d.setMinutes(10, 0, 0);
+    return d.getTime();
+  }
+
+  function currentHotTimeUntil() {
+    const now = Date.now();
+    return Math.max(hotTime.activeUntil, scheduledHotTimeUntil(now));
+  }
+
   function isHotTimeActive() {
-    return Date.now() < hotTime.activeUntil;
+    return Date.now() < currentHotTimeUntil();
   }
 
   function effectiveEnhanceCost(baseCost) {
@@ -105,6 +118,19 @@
     const min = Math.floor(total / 60);
     const sec = String(total % 60).padStart(2, "0");
     return `${min}:${sec}`;
+  }
+
+  function startHotTimeClock() {
+    if (hotTimeClock) return;
+    hotTimeWasActive = isHotTimeActive();
+    hotTimeClock = setInterval(() => {
+      const active = isHotTimeActive();
+      renderHotTime();
+      if (active !== hotTimeWasActive) {
+        hotTimeWasActive = active;
+        renderCosts();
+      }
+    }, 1000);
   }
 
   // ---------- DOM ----------
@@ -180,16 +206,12 @@
 
   function renderHotTime() {
     if (!isHotTimeActive()) {
-      hotTime.activeUntil = 0;
       el.hotTimeBanner.hidden = true;
-      if (hotTimeTimer) {
-        clearInterval(hotTimeTimer);
-        hotTimeTimer = null;
-      }
       return;
     }
+    const activeUntil = currentHotTimeUntil();
     el.hotTimeBanner.hidden = false;
-    el.hotTimeBanner.textContent = `핫타임 ${fmtRemaining(hotTime.activeUntil - Date.now())} 남음 · 강화비용 5% 감소 · 성공확률 5% 증가`;
+    el.hotTimeBanner.textContent = `핫타임 ${fmtRemaining(activeUntil - Date.now())} 남음 · 강화비용 5% 감소 · 성공확률 5% 증가`;
   }
 
   function renderCosts() {
@@ -595,12 +617,7 @@
 
     hotTime = { startedAt, activeUntil };
     renderCosts();
-    if (!hotTimeTimer) {
-      hotTimeTimer = setInterval(() => {
-        renderHotTime();
-        if (!isHotTimeActive()) renderCosts();
-      }, 1000);
-    }
+    startHotTimeClock();
     return true;
   }
 
@@ -615,6 +632,7 @@
   function showAdminHelp() {
     appendAdmin([
       "관리자 명령어",
+      "자동 핫타임: 매시간 00~10분 적용",
       "/admin login <비밀번호> : 관리자 모드 로그인",
       "/admin hot : 10분간 강화비용 5% 감소, 성공확률 5% 증가",
       "/admin reset-users : 전체 유저 데이터를 초기화합니다.",
@@ -838,6 +856,7 @@
 
   renderAll();
   setStorageTab(activeStorageTab);
+  startHotTimeClock();
   bailoutCheck();
   save();
   backend.init();
