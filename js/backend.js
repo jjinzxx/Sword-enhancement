@@ -132,6 +132,13 @@ window.createBackend = function (config, handlers) {
       };
     }
 
+    function rpcErrorMessage(prefix, error) {
+      const detail = [error && error.message, error && error.details, error && error.hint]
+        .filter(Boolean)
+        .join(" / ");
+      return detail ? `${prefix} (${detail})` : prefix;
+    }
+
     return {
       isOnline: true,
       async init() {
@@ -192,12 +199,22 @@ window.createBackend = function (config, handlers) {
       },
       async verifyAdminPassword(password) {
         const { data, error } = await client.rpc("admin_verify_sword_password", { input_password: password });
-        if (error) return { ok: false, error: "관리자 인증 RPC를 사용할 수 없습니다. Supabase SQL Editor에서 sql/admin_rpc_patch.sql을 실행하세요." };
+        if (error) {
+          return {
+            ok: false,
+            error: rpcErrorMessage("관리자 인증 RPC를 사용할 수 없습니다. Supabase SQL Editor에서 sql/admin_rpc_patch.sql을 실행하세요.", error)
+          };
+        }
         return { ok: data === true, error: data === true ? "" : "관리자 인증에 실패했습니다." };
       },
       async resetAllUsers(password) {
         const { data, error } = await client.rpc("admin_reset_sword_game", { input_password: password });
-        if (error) return { ok: false, error: "전체 초기화 RPC 실행에 실패했습니다. 비밀번호 또는 sql/admin_rpc_patch.sql 적용 여부를 확인하세요." };
+        if (error) {
+          return {
+            ok: false,
+            error: rpcErrorMessage("전체 초기화 RPC 실행에 실패했습니다. 비밀번호 또는 sql/admin_rpc_patch.sql 적용 여부를 확인하세요.", error)
+          };
+        }
         refreshRanking();
         return { ok: true, resetAt: data };
       }

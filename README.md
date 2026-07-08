@@ -34,7 +34,7 @@
 images/swords/00.png   ← +0 검
 images/swords/01.png   ← +1 검
 ...
-images/swords/20.png   ← +20 검
+images/swords/30.png   ← +30 검
 ```
 
 - PNG(투명 배경) 권장, 세로로 긴 비율(약 1:2)이 가장 잘 맞습니다.
@@ -49,7 +49,7 @@ images/swords/20.png   ← +20 검
 ## 온라인 채팅/랭킹 (선택)
 
 기본은 오프라인 모드(채팅·랭킹이 내 브라우저에만 저장)입니다.
-[js/config.js](js/config.js)에 Supabase URL과 publishable key를 넣으면 실제 다른 플레이어와 채팅·골드 랭킹이 공유됩니다. 필요한 테이블: `sword_chat`, `sword_players` (스키마는 js/backend.js 참고).
+[js/config.js](js/config.js)에 Supabase URL과 publishable key를 넣으면 실제 다른 플레이어와 채팅·골드 랭킹이 공유됩니다. 필요한 테이블은 `sword_chat`, `sword_players`, `sword_admin_events`입니다.
 
 랭킹은 `전체 골드`와 `일일 획득 골드` 탭으로 나뉩니다. 일일 획득 골드는 판매나 지원금처럼 실제로 얻은 골드만 오늘 날짜 기준으로 누적합니다.
 
@@ -62,4 +62,4 @@ images/swords/20.png   ← +20 검
 - `/admin reset-me`: 현재 브라우저 데이터만 초기화
 - `/admin logout`: 관리자 모드 종료
 
-온라인 모드에서는 Supabase SQL Editor에서 [sql/setup.sql](sql/setup.sql)을 다시 실행하고, 파일 안의 `CHANGE_ME_ADMIN_PASSWORD`를 실제 비밀번호로 바꿔야 합니다. 전체 초기화는 서버의 랭킹 데이터를 비우고 초기화 이벤트를 남기며, 접속 중이거나 다음에 접속한 브라우저가 그 이벤트를 보고 로컬 저장 데이터를 초기화합니다.
+온라인 관리자 기능은 Supabase SQL Editor에서 별도 RPC와 테이블을 설정해야 합니다. 실제 실행용 SQL은 실수 방지를 위해 공개 저장소에 올리지 않는 것을 권장합니다. 전체 초기화는 서버의 랭킹 데이터를 비우고 초기화 이벤트를 남기며, 접속 중이거나 다음에 접속한 브라우저가 그 이벤트를 보고 로컬 저장 데이터를 초기화합니다.
